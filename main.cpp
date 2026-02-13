@@ -1,14 +1,60 @@
 #include <stdint.h>
 #include <stdio.h>
-#include <unordered_map>
+#include <vector>
 
 // clang-format off
 enum Op : int8_t { opUnknown = 0, parOpen, parClose, opPlus, opMinus, opMul, opDiv, opNegate, opSin, opCos, opTan, opCat, opCar };
 // clang-format on
 
+template <typename Key, typename Value>
+class BinarySearchMap {
+    std::vector<Key> keys;
+    std::vector<Value> values;
+
+public:
+    struct SoAIterator {
+        const Key* p1;
+        const Value* p2;
+
+        std::pair<const Key&, const Value&> operator*() const { return { *p1, *p2 }; }
+
+        SoAIterator& operator++()
+        {
+            ++p1, ++p2;
+            return *this;
+        }
+
+        bool operator!=(const SoAIterator& other) const { return p1 != other.p1; }
+    };
+
+    auto begin() const { return SoAIterator { keys.data(), values.data() }; }
+    auto end() const { return SoAIterator { keys.data() + keys.size(), values.data() + values.size() }; }
+
+    Value& insert(const Key& key)
+    {
+        auto keyIt = std::lower_bound(keys.begin(), keys.end(), key);
+        int newKeyPos = std::distance(keys.begin(), keyIt);
+        auto valueIt = values.begin() + newKeyPos;
+        if (keyIt == keys.end() || *keyIt != key) {
+            keys.insert(keyIt, key);
+            valueIt = values.emplace(valueIt, Value {});
+        }
+        return *valueIt;
+    }
+
+    const Value* find(const Key& key) const
+    {
+        auto it = std::lower_bound(keys.begin(), keys.end(), key);
+        if (it != keys.end() && *it == key)
+            return &*(values.begin() + std::distance(keys.begin(), it));
+        return nullptr;
+    }
+};
+
 struct TrieNode {
     Op op = opUnknown;
-    std::unordered_map<char, TrieNode*> children;
+    BinarySearchMap<char, TrieNode*> children;
+
     void print(int offset) const
     {
         putchar('\n');
@@ -27,9 +73,9 @@ class Trie {
     TrieNode root;
     void clear(TrieNode& n)
     {
-        for (auto& c : n.children) {
-            clear(*c.second);
-            delete c.second;
+        for (const auto& [k, v] : n.children) {
+            clear(*v);
+            delete v;
         }
     }
 
@@ -43,16 +89,20 @@ public:
 
         TrieNode* node = &root;
         while (char c = *word) {
-            node = node->children[c] ? node->children[c] : (node->children[c] = new TrieNode());
+            auto& foundNode = node->children.insert(c);
+            if (foundNode)
+                node = foundNode;
+            else {
+                foundNode = new TrieNode {};
+                node = foundNode;
+            }
+
             word++;
         }
         node->op = op;
     }
 
-    void print()
-    {
-        root.print(0);
-    }
+    void print() { root.print(0); }
 
     int match(const char* text, int start, Op& op) const
     {
@@ -60,11 +110,11 @@ public:
         int len = 0;
 
         for (int i = start; text[i]; ++i) {
-            auto it = node->children.find(text[i]);
-            if (it == node->children.end())
+            TrieNode* const* foundValue = node->children.find(text[i]);
+            if (!foundValue)
                 break;
 
-            node = it->second;
+            node = *foundValue;
             ++len;
 
             if (node->op == opUnknown) {
