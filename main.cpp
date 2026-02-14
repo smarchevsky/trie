@@ -1,6 +1,8 @@
+#include <algorithm> // std::lower_bound
+#include <cstring> // memmove
 #include <stdint.h>
 #include <stdio.h>
-#include <vector>
+#include <utility> // std::pair
 
 // clang-format off
 enum Op : int8_t { opUnknown = 0, parOpen, parClose, opPlus, opMinus, opMul, opDiv, opNegate, opSin, opCos, opTan, opCat, opCar };
@@ -8,8 +10,10 @@ enum Op : int8_t { opUnknown = 0, parOpen, parClose, opPlus, opMinus, opMul, opD
 
 template <typename Key, typename Value>
 class BinarySearchMap {
-    std::vector<Key> keys;
-    std::vector<Value> values;
+    Key* keys = nullptr;
+    Value* values = nullptr;
+    uint32_t size = 0;
+    uint32_t capacity = 0;
 
 public:
     struct SoAIterator {
@@ -27,26 +31,40 @@ public:
         bool operator!=(const SoAIterator& other) const { return p1 != other.p1; }
     };
 
-    auto begin() const { return SoAIterator { keys.data(), values.data() }; }
-    auto end() const { return SoAIterator { keys.data() + keys.size(), values.data() + values.size() }; }
+    auto begin() const { return SoAIterator { keys, values }; }
+    auto end() const { return SoAIterator { keys + size, values + size }; }
 
     Value& insert(const Key& key)
     {
-        auto keyIt = std::lower_bound(keys.begin(), keys.end(), key);
-        int newKeyPos = std::distance(keys.begin(), keyIt);
-        auto valueIt = values.begin() + newKeyPos;
-        if (keyIt == keys.end() || *keyIt != key) {
-            keys.insert(keyIt, key);
-            valueIt = values.emplace(valueIt, Value {});
+        auto keyIt = std::lower_bound(keys, keys + size, key);
+        int newKeyPos = std::distance(keys, keyIt);
+
+        if (keyIt == keys + size || *keyIt != key) {
+            size_t _pos = newKeyPos;
+            if (size >= capacity) {
+                size_t _new_cap = (capacity == 0) ? 4 : capacity * 2;
+                keys = (Key*)realloc(keys, _new_cap * sizeof(*keys));
+                values = (Value*)realloc(values, _new_cap * sizeof(*values));
+                capacity = _new_cap;
+            }
+
+            if (_pos < size) {
+                memmove(&keys[_pos + 1], &keys[_pos], (size - _pos) * sizeof(*keys));
+                memmove(&values[_pos + 1], &values[_pos], (size - _pos) * sizeof(*values));
+            }
+
+            keys[_pos] = key;
+            values[_pos] = Value {};
+            size++;
         }
-        return *valueIt;
+        return values[newKeyPos];
     }
 
     const Value* find(const Key& key) const
     {
-        auto it = std::lower_bound(keys.begin(), keys.end(), key);
-        if (it != keys.end() && *it == key)
-            return &*(values.begin() + std::distance(keys.begin(), it));
+        auto keyIt = std::lower_bound(keys, keys + size, key);
+        if (keyIt == keys + size || *keyIt != key)
+            return &*(values + std::distance(keys, keyIt));
         return nullptr;
     }
 };
