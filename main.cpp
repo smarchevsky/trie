@@ -8,19 +8,19 @@
 enum Op : int8_t { opUnknown = 0, parOpen, parClose, opPlus, opMinus, opMul, opDiv, opNegate, opSin, opCos, opTan, opCat, opCar };
 // clang-format on
 
-template <typename Key, typename Value>
+template <typename Key, typename Val>
 class BinarySearchMap {
     Key* keys = nullptr;
-    Value* values = nullptr;
+    Val* vals = nullptr;
     uint32_t size = 0;
     uint32_t capacity = 0;
 
 public:
     struct SoAIterator {
         const Key* p1;
-        const Value* p2;
+        const Val* p2;
 
-        std::pair<const Key&, const Value&> operator*() const { return { *p1, *p2 }; }
+        std::pair<const Key&, const Val&> operator*() const { return { *p1, *p2 }; }
 
         SoAIterator& operator++()
         {
@@ -31,10 +31,10 @@ public:
         bool operator!=(const SoAIterator& other) const { return p1 != other.p1; }
     };
 
-    auto begin() const { return SoAIterator { keys, values }; }
-    auto end() const { return SoAIterator { keys + size, values + size }; }
+    auto begin() const { return SoAIterator { keys, vals }; }
+    auto end() const { return SoAIterator { keys + size, vals + size }; }
 
-    Value& insert(const Key& key)
+    Val& insert(const Key& key)
     {
         auto keyIt = std::lower_bound(keys, keys + size, key);
         int newKeyPos = std::distance(keys, keyIt);
@@ -44,27 +44,27 @@ public:
             if (size >= capacity) {
                 size_t _new_cap = (capacity == 0) ? 4 : capacity * 2;
                 keys = (Key*)realloc(keys, _new_cap * sizeof(*keys));
-                values = (Value*)realloc(values, _new_cap * sizeof(*values));
+                vals = (Val*)realloc(vals, _new_cap * sizeof(*vals));
                 capacity = _new_cap;
             }
 
             if (_pos < size) {
                 memmove(&keys[_pos + 1], &keys[_pos], (size - _pos) * sizeof(*keys));
-                memmove(&values[_pos + 1], &values[_pos], (size - _pos) * sizeof(*values));
+                memmove(&vals[_pos + 1], &vals[_pos], (size - _pos) * sizeof(*vals));
             }
 
             keys[_pos] = key;
-            values[_pos] = Value {};
+            vals[_pos] = Val {};
             size++;
         }
-        return values[newKeyPos];
+        return vals[newKeyPos];
     }
 
-    const Value* find(const Key& key) const
+    const Val* find(const Key& key) const
     {
         auto keyIt = std::lower_bound(keys, keys + size, key);
         if (keyIt == keys + size || *keyIt != key)
-            return &*(values + std::distance(keys, keyIt));
+            return &*(vals + std::distance(keys, keyIt));
         return nullptr;
     }
 };
