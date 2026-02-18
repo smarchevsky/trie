@@ -1,15 +1,32 @@
 #include <algorithm> // std::lower_bound
+#include <cassert>
 #include <cstring> // memmove
 #include <stdint.h>
 #include <stdio.h>
 #include <utility> // std::pair
+#include <vector>
 
-// clang-format off
-enum Op : int8_t { opUnknown = 0, parOpen, parClose, opPlus, opMinus, opMul, opDiv, opNegate, opSin, opCos, opTan, opCat, opCar };
-// clang-format on
+template <typename T>
+inline constexpr size_t align(size_t unaligned)
+{
+    constexpr size_t alignMask = (alignof(T) - 1);
+    static_assert((alignMask & alignof(T)) == 0); // is pow of 2
+    return (((size_t)unaligned + alignMask) & ~alignMask);
+}
+
+const char* fruits[] = { "Apple", "Apricot", "Avocado", "Banana", "Bilberry", "Blackberry", "Blackcurrant", "Blueberry",
+    "Boysenberry", "Currant", "Cherry", "Cherimoya", "Chico fruit", "Cloudberry", "Coconut", "Cranberry", "Cucumber", "Custard apple",
+    "Damson", "Date", "Dragonfruit", "Durian", "Elderberry", "Feijoa", "Fig", "Goji berry", "Gooseberry", "Grape", "Raisin",
+    "Grapefruit", "Guava", "Honeyberry", "Huckleberry", "Jabuticaba", "Jackfruit", "Jambul", "Jujube", "Juniper berry", "Kiwano",
+    "Kiwifruit", "Kumquat", "Lemon", "Lime", "Loquat", "Longan", "Lychee", "Mango", "Mangosteen", "Marionberry", "Melon", "Cantaloupe",
+    "Honeydew", "Watermelon", "Miracle fruit", "Mulberry", "Nectarine", "Nance", "Olive", "Orange", "Blood orange", "Clementine",
+    "Mandarine", "Tangerine", "Papaya", "Passionfruit", "Peach", "Pear", "Persimmon", "Physalis", "Plantain", "Plum", "Prune", "Pineapple",
+    "Plumcot", "Pomegranate", "Pomelo", "Purple mangosteen", "Quince", "Raspberry", "Salmonberry", "Rambutan", "Redcurrant", "Salal berry",
+    "Salak", "Satsuma", "Soursop", "Star fruit", "Solanum quitoense", "Strawberry", "Tamarillo", "Tamarind", "Ugli fruit", "Yuzu" };
 
 template <typename Key, typename Val>
 class BinarySearchMap {
+public:
     Key* keys = nullptr;
     Val* vals = nullptr;
     uint32_t size = 0;
@@ -70,7 +87,8 @@ public:
 };
 
 struct TrieNode {
-    Op op = opUnknown;
+    // Op op = opUnknown;
+    bool bStop = false;
     BinarySearchMap<char, TrieNode*> children;
 
     void print(int offset) const
@@ -88,7 +106,10 @@ struct TrieNode {
 };
 
 class Trie {
+public:
     TrieNode root;
+
+public:
     void clear(TrieNode& n)
     {
         for (const auto& [k, v] : n.children) {
@@ -97,32 +118,28 @@ class Trie {
         }
     }
 
-public:
     ~Trie() { clear(root); };
 
-    void insert(const char* word, Op op)
+    void insert(const char* word)
     {
-        if (op == opUnknown)
-            return;
 
         TrieNode* node = &root;
         while (char c = *word) {
             auto& foundNode = node->children.insert(c);
-            if (foundNode)
-                node = foundNode;
-            else {
+            if (!foundNode)
                 foundNode = new TrieNode {};
-                node = foundNode;
-            }
+
+            node = foundNode;
 
             word++;
         }
-        node->op = op;
+        // node->op = op;
+        node->bStop = true;
     }
 
     void print() { root.print(0); }
 
-    int match(const char* text, int start, Op& op) const
+    int match(const char* text, int start) const
     {
         const TrieNode* node = &root;
         int len = 0;
@@ -135,8 +152,8 @@ public:
             node = *foundValue;
             ++len;
 
-            if (node->op == opUnknown) {
-                op = node->op;
+            if (node->bStop == true) {
+                // op = node->op;
                 return len;
             }
         }
@@ -145,14 +162,71 @@ public:
     }
 };
 
+// for (const auto& [k, v] : node.children)
+using IndexType = uint16_t;
+using NumType = uint8_t;
+using KeyType = uint8_t;
+
+class DenseTrie {
+public:
+    std::vector<uint8_t> m_data;
+
+public:
+    DenseTrie()
+    {
+        m_data.reserve(50);
+        assert(((size_t)m_data.data()) % 8 == 0);
+    }
+
+    size_t pack(const TrieNode* node, size_t thisNodeStart)
+    {
+        const size_t numStart = thisNodeStart;
+        const size_t keyOffsetStart = numStart + sizeof(NumType);
+        const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + node->children.size * sizeof(KeyType));
+        size_t thisNodeEnd = childNodeOffsetStart + node->children.size * sizeof(IndexType);
+
+        m_data.resize(thisNodeEnd);
+
+        *((NumType*)(m_data.data() + numStart)) = node->children.size;
+
+        auto* keys = node->children.keys;
+        auto* nodes = node->children.vals;
+
+        for (int i = 0; i < node->children.size; ++i) {
+            ((KeyType*)(m_data.data() + keyOffsetStart))[i] = keys[i];
+            IndexType* dataAsIndex = (IndexType*)(m_data.data() + childNodeOffsetStart);
+            if (nodes[i]->children.size != 0) {
+                dataAsIndex[i] = thisNodeEnd;
+                thisNodeEnd = pack(nodes[i], thisNodeEnd);
+            } else
+                dataAsIndex[i] = 0;
+        }
+
+        return thisNodeEnd;
+    }
+};
+
 int main()
 {
+
     Trie trie;
-    trie.insert("sin", opSin);
-    trie.insert("cos", opCos);
-    trie.insert("-", opMinus);
-    trie.insert("cat", opCat);
-    trie.insert("car", opCat);
+    for (auto& f : fruits) {
+        // trie.insert(f);
+    }
+
+    trie.insert("sin");
+    trie.insert("cos");
+    trie.insert("car");
+
     trie.print();
+
+    DenseTrie dTrie;
+    dTrie.pack(&trie.root, 0);
+
+#if 1
+    FILE* f = fopen("tree.bin", "wb");
+    fwrite(dTrie.m_data.data(), 1, dTrie.m_data.size(), f);
+    fclose(f);
+#endif
     return 0;
 }
