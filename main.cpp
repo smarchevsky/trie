@@ -163,7 +163,7 @@ public:
 };
 
 // for (const auto& [k, v] : node.children)
-using IndexType = uint16_t;
+using IndexType = uint32_t;
 using NumType = uint8_t;
 using KeyType = uint8_t;
 
@@ -176,6 +176,54 @@ public:
     {
         m_data.reserve(50);
         assert(((size_t)m_data.data()) % 8 == 0);
+    }
+
+    size_t find(size_t thisNodeStart, const KeyType& key, NumType& outNumChildren) const
+    {
+        const size_t numStart = thisNodeStart;
+        const NumType num = *((NumType*)(m_data.data() + numStart));
+        outNumChildren = num;
+
+        const size_t keyOffsetStart = numStart + sizeof(NumType);
+        KeyType* keys = ((KeyType*)(m_data.data() + keyOffsetStart));
+
+        const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + num * sizeof(KeyType));
+        IndexType* nodes = (IndexType*)(m_data.data() + childNodeOffsetStart);
+
+        if (*nodes == (IndexType)0) // is leaf
+            return (size_t)-2;
+
+        auto keyIt = std::lower_bound(keys, keys + num, key);
+        if (keyIt == keys + num || *keyIt != key)
+            return (size_t)-1;
+
+        return *(nodes + std::distance(keys, keyIt));
+    }
+
+    int match(const char* text) const
+    {
+        if (m_data.empty())
+            return 0;
+
+        size_t currentNode = 0;
+        int len = 0;
+
+        while (*text) {
+            NumType numChildren;
+            size_t foundValue = find(currentNode, *text, numChildren);
+            if (foundValue == (size_t)-1) // not found
+                break;
+
+            if (foundValue == (size_t)-2) // is leaf
+                return len + 1;
+
+            currentNode = foundValue;
+
+            ++len;
+            ++text;
+        }
+
+        return 0;
     }
 
     size_t pack(const TrieNode* node, size_t thisNodeStart)
@@ -222,6 +270,10 @@ int main()
 
     DenseTrie dTrie;
     dTrie.pack(&trie.root, 0);
+
+    NumType childNum = 0;
+    int len = dTrie.match("car");
+    printf("%d\n", len);
 
 #if 1
     FILE* f = fopen("tree.bin", "wb");
