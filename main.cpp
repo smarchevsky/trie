@@ -250,6 +250,11 @@ public:
                 nodeEnd = pack(*childNode, nodeEnd);
 
                 if (childNode->bStop) {
+                    // as data can be reallocated we should update pointers
+                    numPacked = (NumType*)&m_data.at(numStart);
+                    packedKeys = (KeyType*)&m_data.at(keyStart);
+                    packedNodes = (IndexType*)&m_data.at(childNodeStart);
+
                     packedKeys[++packedI] = childKey;
                     packedNodes[packedI] = 0;
                     (*numPacked)++;
