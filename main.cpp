@@ -165,30 +165,6 @@ public:
         assert(((size_t)m_data.data()) % 8 == 0);
     }
 
-    // int match(const char* text, ImU32& color, CommentType& commentType) const
-    // {
-    //     int len = 0, lenEnd = 0;
-    //     const TrieNode* node = &root;
-    //     while (*text) {
-    //         auto it = node->children.find(*text);
-    //         if (it == node->children.end()) {
-    //             break;
-    //         }
-    //         node = it->second;
-    //         ++len;
-    //         if (node->isEnd) {
-    //             lenEnd = len;
-    //             color = node->color;
-    //             commentType = node->commentType;
-    //             if (node->children.empty())
-    //                 break;
-    //         }
-    //         text++;
-    //     }
-
-    //     return lenEnd;
-    // }
-
     static bool isIdent(char c) { return isalnum(c) || c == '_'; }
 
     int match(const char* text) const
@@ -212,7 +188,6 @@ public:
             auto keysEnd = keys + num;
             auto keyIt = std::lower_bound(keys, keysEnd, c);
             if (keyIt == keysEnd || *keyIt != c) {
-                volatile int ssssss = 3;
                 break; // not found
             }
 
@@ -288,52 +263,43 @@ public:
     }
 };
 
-#define WORDS 1
+#define WORDS 0
 int main()
 {
     Trie trie;
     DenseTrie dtrie;
+    const auto& words = WordsFruits();
 
 #if WORDS
-    for (auto& f : Words10000()) {
+    for (auto& f : words) {
         printf("Added: %s\n", f);
         trie.insert(f);
     }
 #endif
 
 #if !WORDS
-    trie.insert("ca");
+
     trie.insert("car");
-    trie.insert("cb");
-    trie.insert("cbz");
-    trie.insert("pear");
-    trie.insert("peach");
-    // trie.insert("cara");
 
     dtrie.pack(trie.root);
 
-    printf("%d %s\n", dtrie.match("c"), "c");
-    printf("%d %s\n", dtrie.match("ca"), "ca");
-    printf("%d %s\n", dtrie.match("car"), "car");
-    printf("%d %s\n", dtrie.match("cara"), "cara");
-    printf("%d %s\n", dtrie.match("pear"), "pear");
-    printf("%d %s\n", dtrie.match("peach"), "peach");
+    printf("%d %s\n", dtrie.match("caraganda"), "caraganda");
+
 #else
     dtrie.pack(trie.root);
 #endif
 
 #if WORDS
-    int numErrors = 0;
-    for (auto& f : Words10000()) {
+    int numMismatches = 0;
+    for (auto& f : words) {
         auto oldLen = trie.match(f);
         auto newLen = dtrie.match(f);
-        if (oldLen != 0 && newLen == 0) {
-            printf("Old:  %d %s\n", oldLen, f);
-            printf("New:  %d %s\n", newLen, f);
-            numErrors++;
+        if (oldLen != newLen) {
+            printf("Old: %d,  New: %d  %s\n", oldLen, newLen, f);
+            numMismatches++;
         }
     }
-    printf("numErrors: %d\n", numErrors);
+    printf("num Mmsmatches: %d\n", numMismatches);
 #endif
 
 #if 1
