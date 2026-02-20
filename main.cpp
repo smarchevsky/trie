@@ -197,7 +197,7 @@ public:
         return 0;
     }
 
-    size_t pack(const TrieNode& node, const size_t thisNodeStart)
+    void pack(const TrieNode& node)
     {
         // make additional shift for duplicates
         int duplicateShift = 0;
@@ -208,14 +208,14 @@ public:
         }
 
         const size_t nodeSize = node.getSize();
-        const size_t layoutSize = node.getSize() + duplicateShift;
+        const size_t layoutSize = nodeSize + duplicateShift;
 
-        const size_t numStart = thisNodeStart;
+        const size_t numStart = m_data.size();
         const size_t keyStart = numStart + sizeof(NumType);
         const size_t childNodeStart = align<IndexType>(keyStart + layoutSize * sizeof(KeyType));
-        size_t nodeEnd = childNodeStart + layoutSize * sizeof(IndexType);
 
-        m_data.resize(nodeEnd), assert((size_t)m_data.data() % 8 == 0);
+        m_data.resize(childNodeStart + layoutSize * sizeof(IndexType));
+        assert((size_t)m_data.data() % 8 == 0);
 
         NumType* numPacked = (NumType*)&m_data.at(numStart);
         KeyType* packedKeys = (KeyType*)&m_data.at(keyStart);
@@ -228,11 +228,11 @@ public:
             const auto& childNode = node.getNode(I);
 
             packedKeys[packedI] = childKey;
-            packedNodes[packedI] = nodeEnd;
+            packedNodes[packedI] = m_data.size();
 
             if (childNode->getSize() != 0) {
-                packedNodes[packedI] = nodeEnd;
-                nodeEnd = pack(*childNode, nodeEnd);
+                packedNodes[packedI] = m_data.size();
+                pack(*childNode);
 
                 // as data can be reallocated we should update pointers
                 numPacked = (NumType*)&m_data.at(numStart);
@@ -249,8 +249,6 @@ public:
                 packedNodes[packedI] = 0;
             }
         }
-
-        return nodeEnd;
     }
 };
 
@@ -287,7 +285,7 @@ int main()
     // trie.insert("cd");
     // trie.insert("d");
 
-    dtrie.pack(trie.root, 0);
+    dtrie.pack(trie.root);
 
     printf("New:  %d\n", dtrie.match("ca"));
     printf("New:  %d\n", dtrie.match("car"));
