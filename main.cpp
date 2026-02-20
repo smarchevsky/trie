@@ -1,7 +1,7 @@
 #include <algorithm> // std::lower_bound
 #include <cassert>
+#include <cctype>
 #include <cstring> // memmove
-#include <flat_set>
 #include <stdint.h>
 #include <stdio.h>
 #include <utility> // std::pair
@@ -163,38 +163,72 @@ public:
         assert(((size_t)m_data.data()) % 8 == 0);
     }
 
+    // int match(const char* text, ImU32& color, CommentType& commentType) const
+    // {
+    //     int len = 0, lenEnd = 0;
+    //     const TrieNode* node = &root;
+    //     while (*text) {
+    //         auto it = node->children.find(*text);
+    //         if (it == node->children.end()) {
+    //             break;
+    //         }
+    //         node = it->second;
+    //         ++len;
+    //         if (node->isEnd) {
+    //             lenEnd = len;
+    //             color = node->color;
+    //             commentType = node->commentType;
+    //             if (node->children.empty())
+    //                 break;
+    //         }
+    //         text++;
+    //     }
+
+    //     return lenEnd;
+    // }
+
+    static bool isIdent(char c) { return isalnum(c) || c == '_'; }
+
     int match(const char* text) const
     {
         if (m_data.empty())
             return 0;
 
         size_t currentNode = 0;
-        int len = 0;
+        int len = 0, lenEnd = 0;
 
         while (const char& c = *text) {
+            // retrieve child odes
+            ++len;
             const size_t numStart = currentNode;
             const NumType num = *(NumType*)(&m_data.at(numStart));
-
             const size_t keyOffsetStart = numStart + sizeof(NumType);
             const KeyType* keys = (const KeyType*)(&m_data.at(keyOffsetStart));
-
             const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + num * sizeof(KeyType));
             const IndexType* nodes = (const IndexType*)(&m_data.at(childNodeOffsetStart));
 
-            if (*nodes == (IndexType)0) // is leaf
-                return len + 1;
-
-            auto keyIt = std::lower_bound(keys, keys + num, c);
-            if (keyIt == keys + num || *keyIt != c)
+            auto keysEnd = keys + num;
+            auto keyIt = std::lower_bound(keys, keysEnd, c);
+            if (keyIt == keysEnd || *keyIt != c) {
+                volatile int ssssss = 3;
                 break; // not found
+            }
 
-            currentNode = *(nodes + std::distance(keys, keyIt));
+            currentNode = *(nodes + size_t(keyIt - keys));
 
-            ++len;
+            if (currentNode == 0) {
+                lenEnd = len;
+            }
+
+            auto nextKeyIt = keyIt + 1;
+            if (nextKeyIt != keysEnd && *keyIt == *nextKeyIt) {
+                lenEnd = len;
+            }
+
             ++text;
         }
 
-        return 0;
+        return lenEnd;
     }
 
     void pack(const TrieNode& node)
@@ -262,35 +296,41 @@ const char* fruits[] = { "apple", "apricot", "avocado", "banana", "bilberry", "b
     "plumcot", "pomegranate", "pomelo", "purple mangosteen", "quince", "raspberry", "salmonberry", "rambutan", "redcurrant", "salal berry",
     "salak", "satsuma", "soursop", "star fruit", "solanum quitoense", "strawberry", "tamarillo", "tamarind", "ugli fruit", "yuzu" };
 
+#define FRUITS 1
 int main()
 {
-
     Trie trie;
     DenseTrie dtrie;
-#if 0
-    int index = 0;
+
+#if FRUITS
     for (auto& f : fruits) {
         printf("Added: %s\n", f);
         trie.insert(f);
-        if (index++ > 30)
-            break;
     }
 #endif
 
+#if !FRUITS
     trie.insert("ca");
     trie.insert("car");
     trie.insert("cb");
     trie.insert("cbz");
-
-    // trie.insert("cd");
-    // trie.insert("d");
+    trie.insert("pear");
+    trie.insert("peach");
+    // trie.insert("cara");
 
     dtrie.pack(trie.root);
 
-    printf("New:  %d\n", dtrie.match("ca"));
-    printf("New:  %d\n", dtrie.match("car"));
+    printf("%d %s\n", dtrie.match("c"), "c");
+    printf("%d %s\n", dtrie.match("ca"), "ca");
+    printf("%d %s\n", dtrie.match("car"), "car");
+    printf("%d %s\n", dtrie.match("cara"), "cara");
+    printf("%d %s\n", dtrie.match("pear"), "pear");
+    printf("%d %s\n", dtrie.match("peach"), "peach");
+#else
+    dtrie.pack(trie.root);
+#endif
 
-#if 0
+#if FRUITS
     int numErrors = 0;
     for (auto& f : fruits) {
         auto oldLen = trie.match(f);
