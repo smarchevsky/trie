@@ -226,9 +226,8 @@ public:
 
         const size_t numStart = thisNodeStart;
         const size_t keyStart = numStart + sizeof(NumType);
-        size_t childNodeStart = align<IndexType>(keyStart + layoutSize * sizeof(KeyType));
-        const size_t nodeEndInitial = childNodeStart + layoutSize * sizeof(IndexType);
-        size_t nodeEnd = nodeEndInitial;
+        const size_t childNodeStart = align<IndexType>(keyStart + layoutSize * sizeof(KeyType));
+        size_t nodeEnd = childNodeStart + layoutSize * sizeof(IndexType);
 
         m_data.resize(nodeEnd), assert((size_t)m_data.data() % 8 == 0);
 
@@ -249,15 +248,15 @@ public:
                 packedNodes[packedI] = nodeEnd;
                 nodeEnd = pack(*childNode, nodeEnd);
 
-                if (childNode->bStop) {
-                    // as data can be reallocated we should update pointers
-                    numPacked = (NumType*)&m_data.at(numStart);
-                    packedKeys = (KeyType*)&m_data.at(keyStart);
-                    packedNodes = (IndexType*)&m_data.at(childNodeStart);
+                // as data can be reallocated we should update pointers
+                numPacked = (NumType*)&m_data.at(numStart);
+                packedKeys = (KeyType*)&m_data.at(keyStart);
+                packedNodes = (IndexType*)&m_data.at(childNodeStart);
 
+                if (childNode->bStop) {
+                    (*numPacked)++;
                     packedKeys[++packedI] = childKey;
                     packedNodes[packedI] = 0;
-                    (*numPacked)++;
                 }
 
             } else {
