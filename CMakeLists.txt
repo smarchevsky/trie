@@ -5,7 +5,7 @@ project(Trie LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(Trie main.cpp)
+add_executable(Trie main.cpp words.cpp)
 
 include(GNUInstallDirs)
 install(TARGETS Trie

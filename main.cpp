@@ -7,6 +7,8 @@
 #include <utility> // std::pair
 #include <vector>
 
+#include "words.h"
+
 template <typename T>
 inline constexpr size_t align(size_t unaligned)
 {
@@ -286,30 +288,20 @@ public:
     }
 };
 
-const char* fruits[] = { "apple", "apricot", "avocado", "banana", "bilberry", "blackberry", "blackcurrant", "blueberry",
-    "boysenberry", "currant", "cherry", "cherimoya", "chico fruit", "cloudberry", "coconut", "cranberry", "cucumber", "custard apple",
-    "damson", "date", "dragonfruit", "durian", "elderberry", "feijoa", "fig", "goji berry", "gooseberry", "grape", "raisin",
-    "grapefruit", "guava", "honeyberry", "huckleberry", "jabuticaba", "jackfruit", "jambul", "jujube", "juniper berry", "kiwano",
-    "kiwifruit", "kumquat", "lemon", "lime", "loquat", "longan", "lychee", "mango", "mangosteen", "marionberry", "melon", "cantaloupe",
-    "honeydew", "watermelon", "miracle fruit", "mulberry", "nectarine", "nance", "olive", "orange", "blood orange", "clementine",
-    "mandarine", "tangerine", "papaya", "passionfruit", "peach", "pear", "persimmon", "physalis", "plantain", "plum", "prune", "pineapple",
-    "plumcot", "pomegranate", "pomelo", "purple mangosteen", "quince", "raspberry", "salmonberry", "rambutan", "redcurrant", "salal berry",
-    "salak", "satsuma", "soursop", "star fruit", "solanum quitoense", "strawberry", "tamarillo", "tamarind", "ugli fruit", "yuzu" };
-
-#define FRUITS 1
+#define WORDS 1
 int main()
 {
     Trie trie;
     DenseTrie dtrie;
 
-#if FRUITS
-    for (auto& f : fruits) {
+#if WORDS
+    for (auto& f : Words10000()) {
         printf("Added: %s\n", f);
         trie.insert(f);
     }
 #endif
 
-#if !FRUITS
+#if !WORDS
     trie.insert("ca");
     trie.insert("car");
     trie.insert("cb");
@@ -330,9 +322,9 @@ int main()
     dtrie.pack(trie.root);
 #endif
 
-#if FRUITS
+#if WORDS
     int numErrors = 0;
-    for (auto& f : fruits) {
+    for (auto& f : Words10000()) {
         auto oldLen = trie.match(f);
         auto newLen = dtrie.match(f);
         if (oldLen != 0 && newLen == 0) {
