@@ -163,17 +163,16 @@ public:
         assert(((size_t)m_data.data()) % 8 == 0);
     }
 
-    size_t find(size_t thisNodeStart, const KeyType& key, NumType& outNumChildren) const
+    size_t find(size_t thisNodeStart, const KeyType& key) const
     {
         const size_t numStart = thisNodeStart;
-        const NumType num = *((NumType*)(m_data.data() + numStart));
-        outNumChildren = num;
+        const NumType num = *(NumType*)(&m_data.at(numStart));
 
         const size_t keyOffsetStart = numStart + sizeof(NumType);
-        KeyType* keys = ((KeyType*)(m_data.data() + keyOffsetStart));
+        const KeyType* keys = (const KeyType*)(&m_data.at(keyOffsetStart));
 
         const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + num * sizeof(KeyType));
-        IndexType* nodes = (IndexType*)(m_data.data() + childNodeOffsetStart);
+        const IndexType* nodes = (const IndexType*)(&m_data.at(childNodeOffsetStart));
 
         if (*nodes == (IndexType)0) // is leaf
             return (size_t)-2;
@@ -194,8 +193,7 @@ public:
         int len = 0;
 
         while (*text) {
-            NumType numChildren;
-            size_t foundValue = find(currentNode, *text, numChildren);
+            size_t foundValue = find(currentNode, *text);
             if (foundValue == (size_t)-1) // not found
                 break;
 
@@ -303,8 +301,8 @@ int main()
 
     dtrie.pack(trie.root, 0);
 
-    // printf("New:  %d\n", dtrie.match("ca"));
-    // printf("New:  %d\n", dtrie.match("car"));
+    printf("New:  %d\n", dtrie.match("ca"));
+    printf("New:  %d\n", dtrie.match("car"));
 
 #if 0
     int numErrors = 0;
