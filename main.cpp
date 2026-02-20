@@ -163,27 +163,6 @@ public:
         assert(((size_t)m_data.data()) % 8 == 0);
     }
 
-    size_t find(size_t thisNodeStart, const KeyType& key) const
-    {
-        const size_t numStart = thisNodeStart;
-        const NumType num = *(NumType*)(&m_data.at(numStart));
-
-        const size_t keyOffsetStart = numStart + sizeof(NumType);
-        const KeyType* keys = (const KeyType*)(&m_data.at(keyOffsetStart));
-
-        const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + num * sizeof(KeyType));
-        const IndexType* nodes = (const IndexType*)(&m_data.at(childNodeOffsetStart));
-
-        if (*nodes == (IndexType)0) // is leaf
-            return (size_t)-2;
-
-        auto keyIt = std::lower_bound(keys, keys + num, key);
-        if (keyIt == keys + num || *keyIt != key)
-            return (size_t)-1;
-
-        return *(nodes + std::distance(keys, keyIt));
-    }
-
     int match(const char* text) const
     {
         if (m_data.empty())
@@ -192,15 +171,24 @@ public:
         size_t currentNode = 0;
         int len = 0;
 
-        while (*text) {
-            size_t foundValue = find(currentNode, *text);
-            if (foundValue == (size_t)-1) // not found
-                break;
+        while (const char& c = *text) {
+            const size_t numStart = currentNode;
+            const NumType num = *(NumType*)(&m_data.at(numStart));
 
-            if (foundValue == (size_t)-2) // is leaf
+            const size_t keyOffsetStart = numStart + sizeof(NumType);
+            const KeyType* keys = (const KeyType*)(&m_data.at(keyOffsetStart));
+
+            const size_t childNodeOffsetStart = align<IndexType>(keyOffsetStart + num * sizeof(KeyType));
+            const IndexType* nodes = (const IndexType*)(&m_data.at(childNodeOffsetStart));
+
+            if (*nodes == (IndexType)0) // is leaf
                 return len + 1;
 
-            currentNode = foundValue;
+            auto keyIt = std::lower_bound(keys, keys + num, c);
+            if (keyIt == keys + num || *keyIt != c)
+                break; // not found
+
+            currentNode = *(nodes + std::distance(keys, keyIt));
 
             ++len;
             ++text;
